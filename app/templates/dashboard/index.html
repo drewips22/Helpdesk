@@ -1,0 +1,380 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Chart cards */
+.analytics-section { margin-bottom: 1.5rem; }
+.chart-card { border-radius: 16px; overflow: hidden; }
+.chart-card .card-header { padding: 1rem 1.25rem 0.5rem; border-bottom: none; }
+.chart-card .card-header h6 {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin: 0;
+    color: var(--on-surface-variant);
+    font-family: 'Public Sans', sans-serif;
+}
+.chart-card .card-body { padding: 0.75rem 1.25rem 1rem; }
+
+/* Dark mode overrides */
+[data-bs-theme="dark"] .chart-card .card-header h6 { color: var(--text-muted) !important; }
+[data-bs-theme="dark"] .form-label { color: var(--text) !important; }
+[data-bs-theme="dark"] .card-glass .card-header { color: var(--text) !important; }
+[data-bs-theme="dark"] .card-glass .card-header h5,
+[data-bs-theme="dark"] .card-glass .card-header h6 { color: var(--text) !important; }
+[data-bs-theme="dark"] label { color: var(--text); }
+[data-bs-theme="dark"] .small.fw-semibold { color: var(--text) !important; }
+[data-bs-theme="dark"] .form-select { color: var(--text) !important; }
+[data-bs-theme="dark"] .form-control { color: var(--text) !important; }
+[data-bs-theme="dark"] p, [data-bs-theme="dark"] span:not(.badge) { color: inherit; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-page">
+    <!-- Stats Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card stat-card-total">
+                <div class="stat-card-body">
+                    <div class="stat-icon"><i class="bi bi-ticket-detailed-fill"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number" id="statTotal">{{ total_tickets }}</span>
+                        <span class="stat-label">Total Tiket</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card stat-card-open">
+                <div class="stat-card-body">
+                    <div class="stat-icon"><i class="bi bi-exclamation-circle-fill"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number" id="statOpen">{{ open_tickets }}</span>
+                        <span class="stat-label">Tiket Baru</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card stat-card-progress">
+                <div class="stat-card-body">
+                    <div class="stat-icon"><i class="bi bi-arrow-repeat"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number" id="statProgress">{{ progress_tickets }}</span>
+                        <span class="stat-label">Diproses</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card stat-card-done">
+                <div class="stat-card-body">
+                    <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-number" id="statDone">{{ done_tickets }}</span>
+                        <span class="stat-label">Selesai</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if sla_breached > 0 %}
+    <div class="alert alert-danger d-flex align-items-center mb-4 animate-pulse-border">
+        <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
+        <div>
+            <strong>Peringatan SLA!</strong> Ada <strong>{{ sla_breached }}</strong> tiket yang melewati batas waktu SLA.
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Analytics Charts -->
+    <div class="analytics-section">
+        <div class="row g-3 mb-2">
+            <!-- Status Doughnut -->
+            <div class="col-md-4">
+                <div class="card card-glass chart-card h-100">
+                    <div class="card-header">
+                        <h6><i class="bi bi-pie-chart-fill me-1"></i>Status Tiket</h6>
+                    </div>
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center" style="min-height:180px">
+                        <canvas id="dashStatusChart" style="max-height:155px"></canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- Daily Trend Bar -->
+            <div class="col-md-5">
+                <div class="card card-glass chart-card h-100">
+                    <div class="card-header">
+                        <h6><i class="bi bi-graph-up me-1"></i>Tiket Masuk (7 Hari)</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="dashDailyChart" style="max-height:160px"></canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- Urgency Pie -->
+            <div class="col-md-3">
+                <div class="card card-glass chart-card h-100">
+                    <div class="card-header">
+                        <h6><i class="bi bi-speedometer2 me-1"></i>Urgency</h6>
+                    </div>
+                    <div class="card-body d-flex flex-column align-items-center justify-content-center" style="min-height:180px">
+                        <canvas id="dashUrgencyChart" style="max-height:155px"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-glass mb-4">
+        <div class="card-body py-3">
+            <form method="GET" class="row g-2 align-items-end" id="filterForm">
+                <div class="col-md">
+                    <label class="form-label small fw-semibold">Status</label>
+                    <select class="form-select form-select-sm" name="status" onchange="this.form.submit()">
+                        <option value="">Semua</option>
+                        {% for s in status_options %}
+                        <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md">
+                    <label class="form-label small fw-semibold">Urgency</label>
+                    <select class="form-select form-select-sm" name="urgency" onchange="this.form.submit()">
+                        <option value="">Semua</option>
+                        <option value="rendah" {% if urgency_filter == 'rendah' %}selected{% endif %}>Rendah</option>
+                        <option value="sedang" {% if urgency_filter == 'sedang' %}selected{% endif %}>Sedang</option>
+                        <option value="tinggi" {% if urgency_filter == 'tinggi' %}selected{% endif %}>Tinggi</option>
+                        <option value="kritis" {% if urgency_filter == 'kritis' %}selected{% endif %}>Kritis</option>
+                    </select>
+                </div>
+                <div class="col-md">
+                    <label class="form-label small fw-semibold">Bagian</label>
+                    <select class="form-select form-select-sm" name="bagian" onchange="this.form.submit()">
+                        <option value="">Semua</option>
+                        {% for b in bagian_options %}
+                        <option value="{{ b }}" {% if bagian_filter == b %}selected{% endif %}>{{ b }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md">
+                    <label class="form-label small fw-semibold">Waktu</label>
+                    <select class="form-select form-select-sm" name="date" onchange="this.form.submit()">
+                        <option value="all" {% if date_filter == 'all' %}selected{% endif %}>Semua Waktu</option>
+                        <option value="today" {% if date_filter == 'today' %}selected{% endif %}>Hari Ini</option>
+                        <option value="this_week" {% if date_filter == 'this_week' %}selected{% endif %}>Minggu Ini</option>
+                        <option value="this_month" {% if date_filter == 'this_month' %}selected{% endif %}>Bulan Ini</option>
+                    </select>
+                </div>
+                <div class="col-md">
+                    <label class="form-label small fw-semibold">Urutkan</label>
+                    <select class="form-select form-select-sm" name="sort" onchange="this.form.submit()">
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Terbaru</option>
+                        <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Terlama</option>
+                        <option value="urgency" {% if sort_by == 'urgency' %}selected{% endif %}>Urgency</option>
+                        <option value="sla" {% if sort_by == 'sla' %}selected{% endif %}>Deadline SLA</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Cari</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Kode tiket...">
+                        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                        <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary" title="Reset Filter">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ticket Table -->
+    <div class="card card-glass">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover ticket-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Kode Tiket</th>
+                            <th>Pelapor</th>
+                            <th>Masalah</th>
+                            <th>Lokasi</th>
+                            <th>Urgency</th>
+                            <th>Status</th>
+                            <th>SLA</th>
+                            <th>Waktu</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ticket in tickets.items %}
+                        <tr class="{% if ticket.is_sla_breached %}sla-breached-row{% endif %}">
+                            <td>
+                                <a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}" class="ticket-code-link">
+                                    {{ ticket.ticket_code }}
+                                </a>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="user-avatar-xs">{{ ticket.pelapor.nama[0] | upper }}</div>
+                                    <span>{{ ticket.pelapor.nama }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="ticket-issue">
+                                    <span class="text-muted small">{{ ticket.jenis_perangkat }}</span><br>
+                                    <span>{{ ticket.jenis_masalah }}</span>
+                                </div>
+                            </td>
+                            <td><small>{{ ticket.lokasi }}</small></td>
+                            <td><span class="badge {{ ticket.urgency_badge_class }}">{{ ticket.urgency | capitalize }}</span></td>
+                            <td><span class="badge {{ ticket.status_badge_class }}">{{ ticket.status_label }}</span></td>
+                            <td>
+                                {% if ticket.status not in ['DONE', 'CLOSED'] %}
+                                    <span class="sla-badge {% if ticket.is_sla_breached %}sla-breached{% else %}sla-ok{% endif %}" data-sla-deadline="{{ ticket.sla_deadline_iso }}">
+                                        <i class="bi bi-clock{% if ticket.is_sla_breached %}-history{% endif %}"></i>
+                                        {{ ticket.sla_remaining }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td><small class="text-muted">{{ time_ago(ticket.created_at) }}</small></td>
+                            <td>
+                                <a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5">
+                                <i class="bi bi-inbox fs-1 text-muted"></i>
+                                <p class="text-muted mt-2 mb-0">Belum ada tiket</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        {% if tickets.pages > 1 %}
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if tickets.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ tickets.prev_num }}&status={{ status_filter }}&urgency={{ urgency_filter }}&bagian={{ bagian_filter }}&sort={{ sort_by }}&search={{ search }}&date={{ date_filter }}">&laquo;</a>
+                    </li>
+                    {% endif %}
+                    {% for p in tickets.iter_pages() %}
+                        {% if p %}
+                        <li class="page-item {% if p == tickets.page %}active{% endif %}">
+                            <a class="page-link" href="?page={{ p }}&status={{ status_filter }}&urgency={{ urgency_filter }}&bagian={{ bagian_filter }}&sort={{ sort_by }}&search={{ search }}&date={{ date_filter }}">{{ p }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if tickets.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ tickets.next_num }}&status={{ status_filter }}&urgency={{ urgency_filter }}&bagian={{ bagian_filter }}&sort={{ sort_by }}&search={{ search }}&date={{ date_filter }}">&raquo;</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    var textColor = isDark ? '#c3c6d5' : '#434653';
+    var gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
+
+    var CD = {{ chart_data | safe }};
+    var C = { red:'#ba1a1a', gold:'#EAB308', blue:'#094cb2', green:'#27AE60', grey:'#737784' };
+
+    Chart.defaults.color = textColor;
+
+    // Status Doughnut
+    var statusChart = new Chart(document.getElementById('dashStatusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Baru', 'Ditugaskan', 'Dikerjakan', 'Selesai', 'Ditutup'],
+            datasets: [{ data: CD.status, backgroundColor: [C.red, C.gold, C.blue, C.green, C.grey], borderWidth: 0 }]
+        },
+        options: {
+            responsive: true, cutout: '65%',
+            plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 10 }, padding: 8, color: textColor } } }
+        }
+    });
+
+    // Daily Trend Bar
+    var dailyChart = new Chart(document.getElementById('dashDailyChart'), {
+        type: 'bar',
+        data: {
+            labels: CD.daily_labels,
+            datasets: [{ label: 'Tiket', data: CD.daily_data, backgroundColor: 'rgba(9,76,178,0.8)', borderRadius: 6, borderSkipped: false }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 }, color: textColor }, grid: { color: gridColor } },
+                x: { ticks: { font: { size: 10 }, color: textColor }, grid: { display: false } }
+            }
+        }
+    });
+
+    // Urgency Pie
+    var urgencyChart = new Chart(document.getElementById('dashUrgencyChart'), {
+        type: 'pie',
+        data: {
+            labels: ['Rendah', 'Sedang', 'Tinggi', 'Kritis'],
+            datasets: [{ data: CD.urgency, backgroundColor: [C.green, C.blue, C.gold, C.red], borderWidth: 0 }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 10 }, padding: 8, color: textColor } } }
+        }
+    });
+
+    // Dynamic theme update
+    window.addEventListener('themeChanged', function(e) {
+        var dark = e.detail.theme === 'dark';
+        var cText = dark ? '#c3c6d5' : '#434653';
+        var cGrid = dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
+        
+        Chart.defaults.color = cText;
+        [statusChart, dailyChart, urgencyChart].forEach(function(chart) {
+            if(chart.options.scales) {
+                if(chart.options.scales.x) {
+                    chart.options.scales.x.ticks.color = cText;
+                    chart.options.scales.x.grid.color = cGrid;
+                }
+                if(chart.options.scales.y) {
+                    chart.options.scales.y.ticks.color = cText;
+                    chart.options.scales.y.grid.color = cGrid;
+                }
+            }
+            if(chart.options.plugins.legend) {
+                chart.options.plugins.legend.labels.color = cText;
+            }
+            chart.update();
+        });
+    });
+})();
+</script>
+{% endblock %}

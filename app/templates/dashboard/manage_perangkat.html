@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Kelola Jenis Perangkat{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-pc-display me-2"></i>Kelola Jenis Perangkat</h3>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPerangkatModal">
+            <i class="bi bi-plus-circle-fill me-1"></i>Tambah Perangkat
+        </button>
+    </div>
+
+    <!-- Filter -->
+    <div class="card card-glass mb-4">
+        <div class="card-body py-3">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold">Cari Perangkat</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Nama perangkat...">
+                        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ url_for('master.manage_perangkat') }}" class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="bi bi-x-circle me-1"></i>Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card card-glass">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:50px">#</th>
+                            <th>Nama Perangkat</th>
+                            <th>Status</th>
+                            <th>Dibuat</th>
+                            <th style="width:120px">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in perangkat_list %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-pc-display-horizontal text-primary"></i>
+                                    <strong>{{ p.nama }}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge {% if p.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {{ 'Aktif' if p.is_active else 'Nonaktif' }}
+                                </span>
+                            </td>
+                            <td><small class="text-muted">{{ p.created_at.strftime('%d/%m/%Y') if p.created_at else '-' }}</small></td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ p.id }}" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form method="POST" action="{{ url_for('master.toggle_perangkat', perangkat_id=p.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn {% if p.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}" 
+                                                title="{{ 'Nonaktifkan' if p.is_active else 'Aktifkan' }}">
+                                            <i class="bi bi-{% if p.is_active %}pause{% else %}play{% endif %}-circle"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Edit Modal -->
+                        <div class="modal fade" id="editModal{{ p.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-sm">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('master.edit_perangkat', perangkat_id=p.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Edit Perangkat</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Nama Perangkat <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" name="nama" value="{{ p.nama }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                            <button type="submit" class="btn btn-primary">Simpan</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <i class="bi bi-pc-display fs-1 text-muted"></i>
+                                <p class="text-muted mt-2 mb-0">Belum ada data perangkat</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addPerangkatModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('master.create_perangkat') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle-fill me-2"></i>Tambah Perangkat</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nama Perangkat <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nama" placeholder="Contoh: Mesin Fotokopi" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Tambah</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}Buat Tiket{% endblock %}
+
+{% block content %}
+{% block content_pelapor %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card card-glass">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-plus-circle-fill me-2"></i>Buat Tiket Baru</h4>
+                    <p class="text-muted mb-0 mt-1">Laporkan masalah IT Anda</p>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('tickets.create') }}" enctype="multipart/form-data" id="createTicketForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <!-- Step indicators -->
+                        <div class="form-steps mb-4">
+                            <div class="form-step active" data-step="1">
+                                <div class="step-circle">1</div>
+                                <span>Lokasi</span>
+                            </div>
+                            <div class="form-step" data-step="2">
+                                <div class="step-circle">2</div>
+                                <span>Masalah</span>
+                            </div>
+                            <div class="form-step" data-step="3">
+                                <div class="step-circle">3</div>
+                                <span>Detail</span>
+                            </div>
+                        </div>
+
+                        <!-- Step 1: Location -->
+                        <div class="form-step-content active" id="step1">
+                            <h5 class="mb-3"><i class="bi bi-geo-alt me-2"></i>Informasi Lokasi</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Bagian / Satuan <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="bagian" id="bagian" required>
+                                        <option value="">- Pilih Bagian -</option>
+                                        {% for b in bagian_options %}
+                                        <option value="{{ b }}">{{ b }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Lokasi Ruangan <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="lokasi" id="lokasi" required>
+                                        <option value="">- Pilih Lokasi -</option>
+                                        {% for l in lokasi_options %}
+                                        <option value="{{ l }}">{{ l }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="text-end mt-4">
+                                <button type="button" class="btn btn-primary" onclick="nextStep(2)">
+                                    Lanjut <i class="bi bi-arrow-right ms-1"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Problem -->
+                        <div class="form-step-content" id="step2">
+                            <h5 class="mb-3"><i class="bi bi-tools me-2"></i>Jenis Masalah</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Jenis Perangkat <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="jenis_perangkat" id="jenis_perangkat" required>
+                                        <option value="">- Pilih Perangkat -</option>
+                                        {% for p in perangkat_options %}
+                                        <option value="{{ p }}">{{ p }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Jenis Masalah <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="jenis_masalah" id="jenis_masalah" required>
+                                        <option value="">- Pilih Masalah -</option>
+                                        {% for m in masalah_options %}
+                                        <option value="{{ m }}">{{ m }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Tingkat Urgensi <span class="text-danger">*</span></label>
+                                    <div class="urgency-options">
+                                        {% for val, label, desc in urgency_options %}
+                                        <label class="urgency-option">
+                                            <input type="radio" name="urgency" value="{{ val }}" {% if val == 'sedang' %}checked{% endif %}>
+                                            <div class="urgency-card urgency-{{ val }}">
+                                                <span class="urgency-label">{{ label }}</span>
+                                                <small class="urgency-desc">{{ desc }}</small>
+                                            </div>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="button" class="btn btn-outline-secondary" onclick="nextStep(1)">
+                                    <i class="bi bi-arrow-left me-1"></i> Kembali
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="nextStep(3)">
+                                    Lanjut <i class="bi bi-arrow-right ms-1"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Details -->
+                        <div class="form-step-content" id="step3">
+                            <h5 class="mb-3"><i class="bi bi-card-text me-2"></i>Detail Laporan</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Deskripsi Masalah <span class="text-danger">*</span></label>
+                                <textarea class="form-control" name="deskripsi" id="deskripsi" rows="4" required
+                                    placeholder="Jelaskan masalah yang Anda alami secara detail..."></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Foto Kerusakan <small class="text-muted">(opsional, max 5 foto)</small></label>
+                                <div class="upload-area" id="uploadArea">
+                                    <input type="file" name="photos" id="photoInput" multiple accept="image/*" class="d-none">
+                                    <div class="upload-placeholder" id="uploadPlaceholder">
+                                        <i class="bi bi-cloud-arrow-up fs-1"></i>
+                                        <p>Klik atau drag foto ke sini</p>
+                                        <small class="text-muted">PNG, JPG, JPEG (max 16MB)</small>
+                                    </div>
+                                    <div class="upload-preview" id="uploadPreview"></div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="button" class="btn btn-outline-secondary" onclick="nextStep(2)">
+                                    <i class="bi bi-arrow-left me-1"></i> Kembali
+                                </button>
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-send-fill me-2"></i>Kirim Tiket
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/tickets.js') }}"></script>
+{% endblock %}

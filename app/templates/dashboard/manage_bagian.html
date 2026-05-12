@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Kelola Bagian{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-diagram-3 me-2"></i>Kelola Bagian / Satuan</h3>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBagianModal">
+            <i class="bi bi-plus-circle-fill me-1"></i>Tambah Bagian
+        </button>
+    </div>
+
+    <!-- Filter -->
+    <div class="card card-glass mb-4">
+        <div class="card-body py-3">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold">Cari Bagian</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Nama bagian...">
+                        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ url_for('master.manage_bagian') }}" class="btn btn-outline-secondary btn-sm w-100" title="Reset">
+                        <i class="bi bi-x-circle me-1"></i>Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bagian Table -->
+    <div class="card card-glass">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:50px">#</th>
+                            <th>Nama Bagian / Satuan</th>
+                            <th>Status</th>
+                            <th>Dibuat</th>
+                            <th style="width:120px">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bagian in bagian_list %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-diagram-3-fill text-primary"></i>
+                                    <strong>{{ bagian.nama }}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge {% if bagian.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {{ 'Aktif' if bagian.is_active else 'Nonaktif' }}
+                                </span>
+                            </td>
+                            <td><small class="text-muted">{{ bagian.created_at.strftime('%d/%m/%Y') if bagian.created_at else '-' }}</small></td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editBagianModal{{ bagian.id }}" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <form method="POST" action="{{ url_for('master.toggle_bagian', bagian_id=bagian.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn {% if bagian.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}" 
+                                                title="{{ 'Nonaktifkan' if bagian.is_active else 'Aktifkan' }}">
+                                            <i class="bi bi-{% if bagian.is_active %}pause{% else %}play{% endif %}-circle"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Edit Bagian Modal -->
+                        <div class="modal fade" id="editBagianModal{{ bagian.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-sm">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('master.edit_bagian', bagian_id=bagian.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Edit Bagian</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Nama Bagian <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" name="nama" value="{{ bagian.nama }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                            <button type="submit" class="btn btn-primary">Simpan</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <i class="bi bi-diagram-3 fs-1 text-muted"></i>
+                                <p class="text-muted mt-2 mb-0">Belum ada data bagian</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Bagian Modal -->
+<div class="modal fade" id="addBagianModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('master.create_bagian') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle-fill me-2"></i>Tambah Bagian</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nama Bagian <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nama" placeholder="Contoh: Bag Humas" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Tambah</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

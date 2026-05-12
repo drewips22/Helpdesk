@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Profil{% endblock %}
+
+{% block content %}
+{% block content_pelapor %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card card-glass">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="bi bi-person-circle me-2"></i>Profil Saya</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="profile-avatar-lg">
+                            {{ current_user.nama[0] | upper }}
+                        </div>
+                        <h3 class="mt-3">{{ current_user.nama }}</h3>
+                        <span class="badge bg-primary">{{ current_user.role | capitalize }}</span>
+                        {% if current_user.bagian %}
+                            <span class="badge bg-secondary ms-1">{{ current_user.bagian }}</span>
+                        {% endif %}
+                    </div>
+
+                    <form method="POST" action="{{ url_for('auth.profile') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <h5 class="mb-3">Informasi Umum</h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Nama Lengkap</label>
+                                <input type="text" class="form-control" name="nama" value="{{ current_user.nama }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Username</label>
+                                <input type="text" class="form-control" value="{{ current_user.username }}" disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email" value="{{ current_user.email or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Telepon</label>
+                                <input type="text" class="form-control" name="telepon" value="{{ current_user.telepon or '' }}">
+                            </div>
+                        </div>
+
+                        <h5 class="mb-3">Ubah Password</h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Password Lama</label>
+                                <input type="password" class="form-control" name="current_password">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Password Baru</label>
+                                <input type="password" class="form-control" name="new_password">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Simpan Perubahan
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% endblock %}

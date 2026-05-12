@@ -1,0 +1,82 @@
+<!-- Sidebar for Teknisi/Admin -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+            <div class="logo-icon">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="logo-text">
+                <h1>SI-TIK</h1>
+                <span>IT Helpdesk Polres</span>
+            </div>
+        </div>
+        <button class="sidebar-toggle d-lg-none" id="sidebarClose">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <!-- CTA Button -->
+    <div class="sidebar-cta">
+        <a href="{{ url_for('tickets.create') }}" class="btn-cta">
+            <i class="bi bi-plus-lg"></i>
+            <span>Buat Tiket Baru</span>
+        </a>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-section">
+            <span class="nav-section-title">Menu Utama</span>
+            <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                <i class="bi bi-grid-1x2-fill"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="{{ url_for('tickets.create') }}" class="nav-link {% if request.endpoint == 'tickets.create' %}active{% endif %}">
+                <i class="bi bi-plus-circle-fill"></i>
+                <span>Buat Tiket</span>
+            </a>
+            <a href="{{ url_for('tickets.track') }}" class="nav-link {% if request.endpoint == 'tickets.track' %}active{% endif %}">
+                <i class="bi bi-search"></i>
+                <span>Lacak Tiket</span>
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <span class="nav-section-title">Analisis</span>
+            <a href="{{ url_for('statistics.index') }}" class="nav-link {% if request.endpoint == 'statistics.index' %}active{% endif %}">
+                <i class="bi bi-bar-chart-fill"></i>
+                <span>Statistik</span>
+            </a>
+            <a href="{{ url_for('statistics.export_excel') }}?range=30" class="nav-link">
+                <i class="bi bi-file-earmark-excel-fill"></i>
+                <span>Export Laporan</span>
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <span class="nav-section-title">Administrasi</span>
+            <a href="{{ url_for('dashboard.manage_users') }}" class="nav-link {% if request.endpoint == 'dashboard.manage_users' %}active{% endif %}">
+                <i class="bi bi-people-fill"></i>
+                <span>Kelola User</span>
+            </a>
+            <a href="{{ url_for('master.manage_lokasi') }}" class="nav-link {% if request.endpoint == 'master.manage_lokasi' %}active{% endif %}">
+                <i class="bi bi-building"></i>
+                <span>Kelola Ruangan</span>
+            </a>
+            <a href="{{ url_for('master.manage_bagian') }}" class="nav-link {% if request.endpoint == 'master.manage_bagian' %}active{% endif %}">
+                <i class="bi bi-diagram-3"></i>
+                <span>Kelola Bagian</span>
+            </a>
+            <a href="{{ url_for('master.manage_perangkat') }}" class="nav-link {% if request.endpoint == 'master.manage_perangkat' %}active{% endif %}">
+                <i class="bi bi-pc-display"></i>
+                <span>Kelola Perangkat</span>
+            </a>
+            <a href="{{ url_for('master.manage_masalah') }}" class="nav-link {% if request.endpoint == 'master.manage_masalah' %}active{% endif %}">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span>Kelola Masalah</span>
+            </a>
+        </div>
+    </nav>
+</aside>
+
+<!-- Sidebar Overlay for Mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>

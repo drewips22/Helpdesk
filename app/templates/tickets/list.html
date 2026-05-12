@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Tiket Saya{% endblock %}
+
+{% block content %}
+{% block content_pelapor %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-ticket-detailed me-2"></i>Tiket Saya</h3>
+        <a href="{{ url_for('tickets.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Buat Tiket Baru
+        </a>
+    </div>
+
+    <!-- Pelapor Summary Cards -->
+    <div class="summary-cards">
+        <div class="summary-mini">
+            <span class="num" style="color:var(--primary)">{{ total }}</span>
+            <span class="lbl">Total</span>
+        </div>
+        <div class="summary-mini">
+            <span class="num" style="color:var(--danger)">{{ open_count }}</span>
+            <span class="lbl">Baru</span>
+        </div>
+        <div class="summary-mini">
+            <span class="num" style="color:var(--secondary)">{{ progress_count }}</span>
+            <span class="lbl">Diproses</span>
+        </div>
+        <div class="summary-mini">
+            <span class="num" style="color:var(--success)">{{ done_count }}</span>
+            <span class="lbl">Selesai</span>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div class="status-tabs mb-0">
+            <a href="?status=&date={{ date_filter }}" class="status-tab {% if not status_filter %}active{% endif %}">Semua</a>
+            <a href="?status=OPEN&date={{ date_filter }}" class="status-tab {% if status_filter == 'OPEN' %}active{% endif %}"><span class="dot dot-danger"></span>Baru</a>
+            <a href="?status=ON_PROGRESS&date={{ date_filter }}" class="status-tab {% if status_filter == 'ON_PROGRESS' %}active{% endif %}"><span class="dot dot-info"></span>Dikerjakan</a>
+            <a href="?status=DONE&date={{ date_filter }}" class="status-tab {% if status_filter == 'DONE' %}active{% endif %}"><span class="dot dot-success"></span>Selesai</a>
+        </div>
+        
+        <form method="GET" class="d-flex align-items-center gap-2">
+            {% if status_filter %}
+            <input type="hidden" name="status" value="{{ status_filter }}">
+            {% endif %}
+            <label class="form-label small fw-semibold mb-0 text-muted text-nowrap">Waktu:</label>
+            <select class="form-select form-select-sm rounded-pill shadow-sm" style="width: auto;" name="date" onchange="this.form.submit()">
+                <option value="all" {% if date_filter == 'all' %}selected{% endif %}>Semua</option>
+                <option value="today" {% if date_filter == 'today' %}selected{% endif %}>Hari Ini</option>
+                <option value="this_week" {% if date_filter == 'this_week' %}selected{% endif %}>Minggu Ini</option>
+                <option value="this_month" {% if date_filter == 'this_month' %}selected{% endif %}>Bulan Ini</option>
+            </select>
+        </form>
+    </div>
+    <div class="row g-3">
+        {% for ticket in tickets.items %}
+        <div class="col-12">
+            <a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}" class="ticket-list-card">
+                <div class="ticket-list-left">
+                    <div class="ticket-list-status">
+                        <span class="badge {{ ticket.status_badge_class }}">{{ ticket.status_label }}</span>
+                        <span class="badge {{ ticket.urgency_badge_class }}">{{ ticket.urgency|capitalize }}</span>
+                        {% if ticket.status == 'DONE' and not ticket.rating %}
+                        <span class="badge bg-warning text-dark"><i class="bi bi-star me-1"></i>Beri Rating</span>
+                        {% endif %}
+                    </div>
+                    <h5 class="ticket-list-code">{{ ticket.ticket_code }}</h5>
+                    <p class="mb-1"><strong>{{ ticket.jenis_perangkat }}</strong> — {{ ticket.jenis_masalah }}</p>
+                    <small class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ ticket.lokasi }} &bull; {{ time_ago(ticket.created_at) }}</small>
+                </div>
+                <div class="ticket-list-right"><i class="bi bi-chevron-right fs-4 text-muted"></i></div>
+            </a>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="empty-state">
+                <span class="empty-state-icon"><i class="bi bi-inbox"></i></span>
+                <h4>Belum Ada Tiket</h4>
+                <p>Anda belum pernah membuat tiket. Laporkan masalah IT Anda sekarang!</p>
+                <a href="{{ url_for('tickets.create') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Buat Tiket Pertama
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% if tickets.pages > 1 %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% for p in tickets.iter_pages() %}
+            {% if p %}<li class="page-item {% if p == tickets.page %}active{% endif %}"><a class="page-link" href="?page={{ p }}&status={{ status_filter }}&date={{ date_filter }}">{{ p }}</a></li>{% endif %}
+            {% endfor %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+{% endblock %}

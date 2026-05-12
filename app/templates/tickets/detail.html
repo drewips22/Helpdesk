@@ -1,0 +1,440 @@
+{% extends 'base.html' %}
+{% block title %}{{ ticket.ticket_code }}{% endblock %}
+
+{% block content %}
+{% block content_pelapor %}
+<div class="container-fluid py-4">
+    <div class="row g-4">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Ticket Header -->
+            <div class="card card-glass mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <h3 class="mb-0">{{ ticket.ticket_code }}</h3>
+                                <span id="ticketStatusBadge" class="badge {{ ticket.status_badge_class }} fs-6">{{ ticket.status_label }}</span>
+                                <span class="badge {{ ticket.urgency_badge_class }}">{{ ticket.urgency | capitalize }}</span>
+                            </div>
+                            <p class="text-muted mb-0">
+                                <i class="bi bi-person me-1"></i>{{ ticket.pelapor.nama }} &bull;
+                                <i class="bi bi-clock me-1"></i>{{ format_datetime(ticket.created_at) }}
+                            </p>
+                        </div>
+                        {% if current_user.is_teknisi() %}
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+                                <i class="bi bi-printer me-1"></i>Print
+                            </button>
+                            {% if ticket.status in ['DONE', 'CLOSED'] %}
+                            <a href="{{ url_for('tickets.berita_acara', ticket_id=ticket.id) }}"
+                               target="_blank" class="btn btn-sm btn-primary">
+                                <i class="bi bi-file-earmark-text me-1"></i>Berita Acara
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ticket Info -->
+            <div class="card card-glass mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Informasi Tiket</h5></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label><i class="bi bi-geo-alt me-1"></i>Lokasi</label>
+                                <span>{{ ticket.lokasi }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label><i class="bi bi-building me-1"></i>Bagian</label>
+                                <span>{{ ticket.bagian }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label><i class="bi bi-pc-display me-1"></i>Perangkat</label>
+                                <span>{{ ticket.jenis_perangkat }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label><i class="bi bi-exclamation-triangle me-1"></i>Masalah</label>
+                                <span>{{ ticket.jenis_masalah }}</span>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="info-item">
+                                <label><i class="bi bi-card-text me-1"></i>Deskripsi</label>
+                                <p class="mb-0">{{ ticket.deskripsi }}</p>
+                            </div>
+                        </div>
+                        {% if ticket.catatan_teknisi %}
+                        <div class="col-12">
+                            <div class="info-item info-item-highlight">
+                                <label><i class="bi bi-chat-left-text me-1"></i>Catatan Teknisi</label>
+                                <p class="mb-0">{{ ticket.catatan_teknisi }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Photos -->
+            {% if photos %}
+            <div class="card card-glass mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-camera me-2"></i>Foto Kerusakan</h5></div>
+                <div class="card-body">
+                    <div class="photo-gallery">
+                        {% for photo in photos %}
+                        <div class="photo-item">
+                            <img src="{{ url_for('static', filename=photo.filepath) }}" alt="Foto kerusakan" 
+                                 onclick="openLightbox(this.src)" loading="lazy">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Comments Section (Real-time Chat) -->
+            <div class="card card-glass mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-chat-dots me-2"></i>Diskusi
+                        <span class="badge bg-secondary ms-2" id="chatCount">{{ comments|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="comment-list mb-3" id="chatMessages">
+                        {% if comments %}
+                            {% for c in comments %}
+                            <div class="comment-item {% if c.user_id == current_user.id %}own{% endif %}">
+                                <div class="user-avatar-xs">{{ c.user.nama[0] | upper }}</div>
+                                <div>
+                                    <div class="comment-bubble">{{ c.message }}</div>
+                                    <div class="comment-meta">{{ c.user.nama }} &bull; {{ time_ago(c.created_at) }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted text-center mb-0"><small>Belum ada diskusi</small></p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Typing Indicator -->
+                    <div id="typingIndicator" class="typing-indicator-wrap" style="display:none;"></div>
+
+                    {% if ticket.status not in ['CLOSED'] %}
+                    <form id="chatForm" onsubmit="return handleChatSubmit(event)">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="chatInput" name="message" 
+                                   placeholder="Tulis pesan..." required autocomplete="off"
+                                   oninput="emitTyping({{ ticket.id }})">
+                            <button class="btn btn-primary" type="submit" data-noloading="1"><i class="bi bi-send"></i></button>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Activity Timeline -->
+            <div class="card card-glass">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Riwayat Aktivitas</h5></div>
+                <div class="card-body">
+                    <div class="activity-timeline">
+                        {% for log in logs %}
+                        <div class="timeline-item">
+                            <div class="timeline-icon">
+                                <i class="bi {{ log.action_icon }}"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-header">
+                                    <strong>{{ log.action_label }}</strong>
+                                    <small class="text-muted">{{ time_ago(log.created_at) }}</small>
+                                </div>
+                                {% if log.note %}
+                                <p class="timeline-note mb-0">{{ log.note }}</p>
+                                {% endif %}
+                                <small class="text-muted">oleh {{ log.user.nama }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Actions -->
+        <div class="col-lg-4">
+            <!-- SLA Info -->
+            <div class="card card-glass mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-clock me-2"></i>SLA</h5></div>
+                <div class="card-body text-center">
+                    {% if ticket.status not in ['DONE', 'CLOSED'] %}
+                        <div class="sla-display {% if ticket.is_sla_breached %}sla-breached{% else %}sla-ok{% endif %}">
+                            <span class="sla-time" data-sla-deadline="{{ ticket.sla_deadline_iso }}">{{ ticket.sla_remaining }}</span>
+                            <span class="sla-status">{% if ticket.is_sla_breached %}Melewati Deadline{% else %}Sisa Waktu{% endif %}</span>
+                        </div>
+                        <small class="text-muted">Deadline: {{ format_datetime(ticket.sla_deadline) }}</small>
+                    {% else %}
+                        <div class="sla-display sla-done">
+                            <i class="bi bi-check-circle-fill fs-1"></i>
+                            <span class="sla-status mt-2">Tiket Selesai</span>
+                        </div>
+                        {% if ticket.resolved_at %}
+                        <small class="text-muted">Diselesaikan: {{ format_datetime(ticket.resolved_at) }}</small>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Pelapor: Close & Rate -->
+            {% if not current_user.is_teknisi() and ticket.user_id == current_user.id %}
+                {% if ticket.status == 'DONE' %}
+                <div class="card card-glass mb-4 action-card-highlight">
+                    <div class="card-header bg-success bg-opacity-10">
+                        <h5 class="mb-0"><i class="bi bi-check-circle me-2 text-success"></i>Konfirmasi Selesai</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted">Apakah masalah Anda sudah teratasi? Tutup tiket untuk konfirmasi.</p>
+                        <form method="POST" action="{{ url_for('tickets.update', ticket_id=ticket.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="close">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-check-lg me-1"></i>Ya, Tutup Tiket
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if ticket.status in ['DONE', 'CLOSED'] and not ticket.rating %}
+                <div class="card card-glass mb-4 action-card-highlight">
+                    <div class="card-header bg-warning bg-opacity-10">
+                        <h5 class="mb-0"><i class="bi bi-star me-2 text-warning"></i>Beri Rating</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('tickets.update', ticket_id=ticket.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="rate">
+                            <input type="hidden" name="rating" id="ratingInput" value="0">
+                            <div class="star-rating mb-3 justify-content-center">
+                                {% for i in range(1, 6) %}
+                                <i class="bi bi-star text-muted" id="star{{ i }}" onclick="setRating({{ i }})"></i>
+                                {% endfor %}
+                            </div>
+                            <textarea class="form-control form-control-sm mb-2" name="rating_comment" rows="2" placeholder="Komentar (opsional)..."></textarea>
+                            <button type="submit" class="btn btn-warning w-100 btn-sm">
+                                <i class="bi bi-send me-1"></i>Kirim Rating
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% elif ticket.rating %}
+                <div class="card card-glass mb-4">
+                    <div class="card-header"><h5 class="mb-0"><i class="bi bi-star-fill me-2 text-warning"></i>Rating</h5></div>
+                    <div class="card-body text-center">
+                        <div class="mb-1">
+                            {% for i in range(1, 6) %}
+                            <i class="bi {% if i <= ticket.rating %}bi-star-fill text-warning{% else %}bi-star text-muted{% endif %} fs-4"></i>
+                            {% endfor %}
+                        </div>
+                        <strong>{{ ticket.rating }}/5</strong>
+                        {% if ticket.rating_comment %}
+                        <p class="small text-muted mt-2 mb-0">"{{ ticket.rating_comment }}"</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            {% endif %}
+
+            <!-- Teknisi Actions -->
+            {% if current_user.is_teknisi() %}
+            <!-- Show rating if exists -->
+            {% if ticket.rating %}
+            <div class="card card-glass mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-star-fill me-2 text-warning"></i>Rating Pelapor</h5></div>
+                <div class="card-body text-center">
+                    {% for i in range(1, 6) %}
+                    <i class="bi {% if i <= ticket.rating %}bi-star-fill text-warning{% else %}bi-star text-muted{% endif %} fs-4"></i>
+                    {% endfor %}
+                    <div><strong>{{ ticket.rating }}/5</strong></div>
+                    {% if ticket.rating_comment %}<p class="small text-muted mt-1 mb-0">"{{ ticket.rating_comment }}"</p>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Assign Teknisi -->
+            <div class="card card-glass mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-person-check me-2"></i>Penugasan</h5></div>
+                <div class="card-body">
+                    {% if ticket.teknisi %}
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <div class="user-avatar-sm">{{ ticket.teknisi.nama[0] | upper }}</div>
+                            <div>
+                                <strong>{{ ticket.teknisi.nama }}</strong><br>
+                                <small class="text-muted">Teknisi ditugaskan</small>
+                            </div>
+                        </div>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('tickets.update', ticket_id=ticket.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="assign">
+                        <div class="mb-2">
+                            <select class="form-select form-select-sm" name="teknisi_id" required>
+                                <option value="">Pilih Teknisi</option>
+                                {% for t in teknisi_list %}
+                                <option value="{{ t.id }}" {% if ticket.assigned_to == t.id %}selected{% endif %}>{{ t.nama }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="bi bi-person-check me-1"></i>Tugaskan
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Update Status -->
+            <div class="card card-glass mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-arrow-repeat me-2"></i>Update Status</h5></div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('tickets.update', ticket_id=ticket.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="status">
+                        <div class="status-buttons">
+                            {% for s in ['OPEN', 'ASSIGNED', 'ON_PROGRESS', 'DONE', 'CLOSED'] %}
+                            <button type="submit" name="status" value="{{ s }}" 
+                                    class="btn btn-sm {% if ticket.status == s %}btn-primary{% else %}btn-outline-secondary{% endif %} w-100 mb-1">
+                                {{ s }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Add Note -->
+            <div class="card card-glass mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Catatan</h5></div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('tickets.update', ticket_id=ticket.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="note">
+                        <textarea class="form-control form-control-sm mb-2" name="note" rows="3" placeholder="Tambah catatan..."></textarea>
+                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                            <i class="bi bi-send me-1"></i>Kirim
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Add Photo -->
+            <div class="card card-glass mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-camera me-2"></i>Tambah Foto</h5></div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('tickets.update', ticket_id=ticket.id) }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="add_photo">
+                        <input type="file" class="form-control form-control-sm mb-2" name="photos" multiple accept="image/*">
+                        <button type="submit" class="btn btn-sm btn-primary w-100">
+                            <i class="bi bi-upload me-1"></i>Upload
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Recommendation -->
+            <div class="card card-glass mb-4">
+                <div class="card-header bg-warning bg-opacity-10">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb me-2 text-warning"></i>Rekomendasi</h5>
+                </div>
+                <div class="card-body">
+                    {% if recommendation %}
+                    <div class="mb-3">
+                        <h6><i class="bi bi-wrench me-1"></i>Alat yang Dibawa:</h6>
+                        <ul class="rec-list">
+                            {% for alat in recommendation.alat[:6] %}
+                            <li>{{ alat }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="mb-3">
+                        <h6><i class="bi bi-search me-1"></i>Kemungkinan Penyebab:</h6>
+                        <ul class="rec-list">
+                            {% for cause in recommendation.penyebab[:4] %}
+                            <li>{{ cause }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div>
+                        <h6><i class="bi bi-list-check me-1"></i>Langkah Awal:</h6>
+                        <ol class="rec-list">
+                            {% for step in recommendation.langkah[:5] %}
+                            <li>{{ step }}</li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Lightbox -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+    <img src="" alt="Preview" id="lightboxImg">
+    <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+</div>
+{% endblock %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/tickets.js') }}"></script>
+<script>
+// Lightbox
+function openLightbox(src) {
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightbox').classList.add('active');
+}
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('active');
+}
+
+// Join ticket room for real-time
+document.addEventListener('DOMContentLoaded', () => {
+    joinTicketRoom({{ ticket.id }});
+
+    // Scroll chat to bottom
+    const chatEl = document.getElementById('chatMessages');
+    if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+});
+
+// Handle chat form submission via SocketIO
+function handleChatSubmit(e) {
+    e.preventDefault();
+    const input = document.getElementById('chatInput');
+    const msg = input.value.trim();
+    if (!msg) return false;
+
+    sendChatMessage({{ ticket.id }}, msg);
+    input.value = '';
+
+    // Also stop typing
+    if (socket && socket.connected) {
+        socket.emit('stop_typing', { ticket_id: {{ ticket.id }} });
+    }
+    return false;
+}
+</script>
+{% endblock %}
