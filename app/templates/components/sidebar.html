@@ -74,6 +74,10 @@
                 <i class="bi bi-exclamation-triangle"></i>
                 <span>Kelola Masalah</span>
             </a>
+            <a href="{{ url_for('master.manage_recommendations') }}" class="nav-link {% if request.endpoint == 'master.manage_recommendations' %}active{% endif %}">
+                <i class="bi bi-lightbulb-fill"></i>
+                <span>Kelola Rekomendasi</span>
+            </a>
         </div>
     </nav>
 </aside>

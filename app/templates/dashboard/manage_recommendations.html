@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% block title %}Kelola FAQ & Rekomendasi{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h3 class="mb-0"><i class="bi bi-lightbulb-fill me-2 text-warning"></i>Kelola FAQ & Rekomendasi</h3>
+            <p class="text-muted mb-0 mt-1">Sesuaikan panduan, penyebab, dan langkah awal per masalah</p>
+        </div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRecModal">
+            <i class="bi bi-plus-circle-fill me-1"></i>Tambah Rekomendasi
+        </button>
+    </div>
+
+    <!-- Filter & Search -->
+    <div class="card card-glass mb-4">
+        <div class="card-body py-3">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Filter Perangkat</label>
+                    <select class="form-select form-select-sm" name="perangkat" onchange="this.form.submit()">
+                        <option value="">Semua Perangkat</option>
+                        {% for p in perangkat_options %}
+                        <option value="{{ p }}" {% if perangkat_filter == p %}selected{% endif %}>{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold">Cari Masalah / Teks</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Kata kunci...">
+                        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('master.manage_recommendations') }}" class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="bi bi-x-circle me-1"></i>Reset Filter
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card card-glass">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:50px">#</th>
+                            <th style="width:200px">Perangkat</th>
+                            <th style="width:200px">Jenis Masalah</th>
+                            <th>Panduan & FAQ</th>
+                            <th style="width:100px" class="text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in recommendations %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <span class="badge {% if r.jenis_perangkat == 'Semua Perangkat' %}bg-primary{% else %}bg-info text-dark{% endif %}">
+                                    {{ r.jenis_perangkat }}
+                                </span>
+                            </td>
+                            <td><strong>{{ r.jenis_masalah }}</strong></td>
+                            <td>
+                                <div class="small">
+                                    <div class="text-muted mb-1"><i class="bi bi-wrench me-1"></i><strong>Alat:</strong> {{ r.alat_yang_dibawa | replace('\r\n', ', ') | replace('\n', ', ') | truncate(60) }}</div>
+                                    <div class="text-muted mb-1"><i class="bi bi-question-circle me-1"></i><strong>Penyebab (FAQ):</strong> {{ r.kemungkinan_penyebab | replace('\r\n', ', ') | replace('\n', ', ') | truncate(80) }}</div>
+                                    {% if r.langkah_awal %}
+                                    <div class="text-muted"><i class="bi bi-list-check me-1"></i><strong>Langkah:</strong> {{ r.langkah_awal | replace('\r\n', ', ') | replace('\n', ', ') | truncate(80) }}</div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ r.id }}" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ r.id }}" title="Hapus">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- Edit Modal -->
+                        <div class="modal fade" id="editModal{{ r.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('master.edit_recommendation', rec_id=r.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title"><i class="bi bi-pencil-square me-2 text-primary"></i>Edit FAQ & Rekomendasi</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="alert alert-info py-2 small">
+                                                <i class="bi bi-info-circle-fill me-2"></i>Gunakan baris baru (Enter) untuk memisahkan setiap poin.
+                                            </div>
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">Jenis Perangkat <span class="text-danger">*</span></label>
+                                                    <select class="form-select" name="jenis_perangkat" required>
+                                                        {% for p in perangkat_options %}
+                                                        <option value="{{ p }}" {% if r.jenis_perangkat == p %}selected{% endif %}>{{ p }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-semibold">Jenis Masalah <span class="text-danger">*</span></label>
+                                                    <select class="form-select" name="jenis_masalah" required>
+                                                        {% for m in masalah_options %}
+                                                        <option value="{{ m }}" {% if r.jenis_masalah == m %}selected{% endif %}>{{ m }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label fw-semibold">Alat yang Dibawa <span class="text-danger">*</span></label>
+                                                    <textarea class="form-control" name="alat_yang_dibawa" rows="3" required placeholder="Obeng set&#10;Multimeter&#10;Kabel LAN">{{ r.alat_yang_dibawa }}</textarea>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label fw-semibold">Kemungkinan Penyebab (FAQ) <span class="text-danger">*</span></label>
+                                                    <textarea class="form-control" name="kemungkinan_penyebab" rows="3" required placeholder="Power supply rusak&#10;Kabel putus">{{ r.kemungkinan_penyebab }}</textarea>
+                                                </div>
+                                                <div class="col-12">
+                                                    <label class="form-label fw-semibold">Langkah Awal Penanganan <small class="text-muted">(opsional)</small></label>
+                                                    <textarea class="form-control" name="langkah_awal" rows="3" placeholder="Cek koneksi kabel&#10;Restart perangkat">{{ r.langkah_awal }}</textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                                            <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Delete Modal -->
+                        <div class="modal fade" id="deleteModal{{ r.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-sm">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ url_for('master.delete_recommendation', rec_id=r.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <div class="modal-header bg-danger bg-opacity-10">
+                                            <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Hapus Rekomendasi</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body text-center py-4">
+                                            <p class="mb-0">Yakin ingin menghapus rekomendasi untuk masalah <strong>{{ r.jenis_masalah }}</strong> pada <strong>{{ r.jenis_perangkat }}</strong>?</p>
+                                        </div>
+                                        <div class="modal-footer justify-content-center">
+                                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                                            <button type="submit" class="btn btn-danger btn-sm">Hapus</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <i class="bi bi-lightbulb fs-1 text-muted"></i>
+                                <p class="text-muted mt-2 mb-1">Belum ada panduan FAQ & Rekomendasi kustom</p>
+                                <small class="text-muted">Sistem saat ini menggunakan rekomendasi bawaan secara otomatis.</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addRecModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('master.create_recommendation') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle-fill me-2 text-primary"></i>Tambah FAQ & Rekomendasi</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-info-circle-fill me-2"></i>Gunakan baris baru (Enter) untuk memisahkan setiap poin Alat, Penyebab, dan Langkah.
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Jenis Perangkat <span class="text-danger">*</span></label>
+                            <select class="form-select" name="jenis_perangkat" required>
+                                {% for p in perangkat_options %}
+                                <option value="{{ p }}" {% if perangkat_filter == p %}selected{% endif %}>{{ p }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Jenis Masalah <span class="text-danger">*</span></label>
+                            <select class="form-select" name="jenis_masalah" required>
+                                <option value="">- Pilih Masalah -</option>
+                                {% for m in masalah_options %}
+                                <option value="{{ m }}">{{ m }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Alat yang Dibawa <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="alat_yang_dibawa" rows="3" required placeholder="Obeng set (+/-)&#10;Multimeter&#10;Kabel LAN cadangan"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Kemungkinan Penyebab (FAQ) <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="kemungkinan_penyebab" rows="3" required placeholder="Power supply rusak&#10;Kabel jaringan putus atau kendor&#10;Konfigurasi sistem tidak sesuai"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Langkah Awal Penanganan <small class="text-muted">(opsional)</small></label>
+                            <textarea class="form-control" name="langkah_awal" rows="3" placeholder="Periksa indikator lampu LED daya&#10;Lakukan verifikasi kabel koneksi fisik&#10;Restart sistem dan periksa log"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Simpan Rekomendasi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

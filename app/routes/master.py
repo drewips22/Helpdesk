@@ -1,7 +1,7 @@
 """Master data management routes for Lokasi (rooms) and Bagian (departments)."""
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required
-from app.models import Lokasi, Bagian, JenisPerangkat, JenisMasalah
+from app.models import Lokasi, Bagian, JenisPerangkat, JenisMasalah, Recommendation
 from app.extensions import db
 from app.utils.decorators import admin_required
 
@@ -319,3 +319,119 @@ def toggle_masalah(masalah_id):
     status = 'diaktifkan' if masalah.is_active else 'dinonaktifkan'
     flash(f'Jenis masalah "{masalah.nama}" berhasil {status}.', 'success')
     return redirect(url_for('master.manage_masalah'))
+
+
+# ==================== FAQ & REKOMENDASI ====================
+
+@master_bp.route('/recommendations')
+@login_required
+@admin_required
+def manage_recommendations():
+    from app.utils import get_perangkat_options, get_masalah_options
+    search = request.args.get('search', '').strip()
+    perangkat_filter = request.args.get('perangkat', '')
+    query = Recommendation.query
+
+    if search:
+        query = query.filter(
+            db.or_(
+                Recommendation.jenis_masalah.ilike(f'%{search}%'),
+                Recommendation.kemungkinan_penyebab.ilike(f'%{search}%'),
+                Recommendation.alat_yang_dibawa.ilike(f'%{search}%')
+            )
+        )
+    if perangkat_filter:
+        query = query.filter_by(jenis_perangkat=perangkat_filter)
+
+    recommendations = query.order_by(Recommendation.jenis_perangkat.asc(), Recommendation.jenis_masalah.asc()).all()
+
+    # Tambahkan opsi 'Semua Perangkat' sebagai pilihan umum
+    perangkat_options = ['Semua Perangkat'] + get_perangkat_options()
+
+    return render_template('dashboard/manage_recommendations.html',
+                           recommendations=recommendations,
+                           search=search,
+                           perangkat_filter=perangkat_filter,
+                           perangkat_options=perangkat_options,
+                           masalah_options=get_masalah_options())
+
+
+@master_bp.route('/recommendations/create', methods=['POST'])
+@login_required
+@admin_required
+def create_recommendation():
+    jenis_perangkat = request.form.get('jenis_perangkat', '').strip()
+    jenis_masalah = request.form.get('jenis_masalah', '').strip()
+    alat_yang_dibawa = request.form.get('alat_yang_dibawa', '').strip()
+    kemungkinan_penyebab = request.form.get('kemungkinan_penyebab', '').strip()
+    langkah_awal = request.form.get('langkah_awal', '').strip()
+
+    if not all([jenis_perangkat, jenis_masalah, alat_yang_dibawa, kemungkinan_penyebab]):
+        flash('Perangkat, masalah, alat, dan kemungkinan penyebab wajib diisi.', 'danger')
+        return redirect(url_for('master.manage_recommendations'))
+
+    existing = Recommendation.query.filter_by(jenis_perangkat=jenis_perangkat, jenis_masalah=jenis_masalah).first()
+    if existing:
+        flash(f'Rekomendasi untuk perangkat "{jenis_perangkat}" dan masalah "{jenis_masalah}" sudah ada.', 'danger')
+        return redirect(url_for('master.manage_recommendations'))
+
+    rec = Recommendation(
+        jenis_perangkat=jenis_perangkat,
+        jenis_masalah=jenis_masalah,
+        alat_yang_dibawa=alat_yang_dibawa,
+        kemungkinan_penyebab=kemungkinan_penyebab,
+        langkah_awal=langkah_awal or None
+    )
+    db.session.add(rec)
+    db.session.commit()
+
+    flash('FAQ & Rekomendasi berhasil ditambahkan.', 'success')
+    return redirect(url_for('master.manage_recommendations'))
+
+
+@master_bp.route('/recommendations/<int:rec_id>/edit', methods=['POST'])
+@login_required
+@admin_required
+def edit_recommendation(rec_id):
+    rec = Recommendation.query.get_or_404(rec_id)
+
+    jenis_perangkat = request.form.get('jenis_perangkat', rec.jenis_perangkat).strip()
+    jenis_masalah = request.form.get('jenis_masalah', rec.jenis_masalah).strip()
+    alat_yang_dibawa = request.form.get('alat_yang_dibawa', '').strip()
+    kemungkinan_penyebab = request.form.get('kemungkinan_penyebab', '').strip()
+    langkah_awal = request.form.get('langkah_awal', '').strip()
+
+    if not all([jenis_perangkat, jenis_masalah, alat_yang_dibawa, kemungkinan_penyebab]):
+        flash('Perangkat, masalah, alat, dan kemungkinan penyebab wajib diisi.', 'danger')
+        return redirect(url_for('master.manage_recommendations'))
+
+    existing = Recommendation.query.filter(
+        Recommendation.jenis_perangkat == jenis_perangkat,
+        Recommendation.jenis_masalah == jenis_masalah,
+        Recommendation.id != rec_id
+    ).first()
+
+    if existing:
+        flash(f'Rekomendasi untuk perangkat "{jenis_perangkat}" dan masalah "{jenis_masalah}" sudah ada.', 'danger')
+        return redirect(url_for('master.manage_recommendations'))
+
+    rec.jenis_perangkat = jenis_perangkat
+    rec.jenis_masalah = jenis_masalah
+    rec.alat_yang_dibawa = alat_yang_dibawa
+    rec.kemungkinan_penyebab = kemungkinan_penyebab
+    rec.langkah_awal = langkah_awal or None
+
+    db.session.commit()
+    flash('FAQ & Rekomendasi berhasil diperbarui.', 'success')
+    return redirect(url_for('master.manage_recommendations'))
+
+
+@master_bp.route('/recommendations/<int:rec_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_recommendation(rec_id):
+    rec = Recommendation.query.get_or_404(rec_id)
+    db.session.delete(rec)
+    db.session.commit()
+    flash('FAQ & Rekomendasi berhasil dihapus.', 'success')
+    return redirect(url_for('master.manage_recommendations'))
