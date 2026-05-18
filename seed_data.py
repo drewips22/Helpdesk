@@ -9,8 +9,14 @@ app = create_app()
 
 def seed():
     with app.app_context():
-        db.drop_all()
         db.create_all()
+        
+        # Check if already seeded
+        if User.query.first():
+            print("Database already seeded. Skipping seed.")
+            return
+
+        print("Database is empty. Running seed...")
 
         # ==================== SEED LOKASI (RUANGAN) ====================
         lokasi_names = [
