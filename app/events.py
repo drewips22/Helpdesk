@@ -4,11 +4,25 @@ from .extensions import socketio
 
 @socketio.on('connect')
 def handle_connect():
-    pass
+    if current_user.is_authenticated:
+        join_room(f"user_{current_user.id}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    pass
+    if current_user.is_authenticated:
+        leave_room(f"user_{current_user.id}")
+
+def emit_new_ticket_alert(data):
+    socketio.emit('new_ticket', data)
+
+def emit_dashboard_update():
+    socketio.emit('dashboard_update')
+
+def emit_ticket_update(ticket_id, data):
+    socketio.emit('ticket_updated', data, to=f"ticket_{ticket_id}")
+
+def emit_ticket_notification(user_id, data):
+    socketio.emit('notification', data, to=f"user_{user_id}")
 
 @socketio.on('join_ticket')
 def on_join_ticket(data):
